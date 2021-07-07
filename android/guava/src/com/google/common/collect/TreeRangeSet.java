@@ -30,8 +30,7 @@ import java.util.NavigableMap;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeMap;
-import org.checkerframework.checker.nullness.compatqual.MonotonicNonNullDecl;
-import org.checkerframework.checker.nullness.compatqual.NullableDecl;
+import javax.annotation.CheckForNull;
 
 /**
  * An implementation of {@link RangeSet} backed by a {@link TreeMap}.
@@ -41,6 +40,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableDecl;
  */
 @Beta
 @GwtIncompatible // uses NavigableMap
+@ElementTypesAreNonnullByDefault
 public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     implements Serializable {
 
@@ -77,8 +77,8 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     this.rangesByLowerBound = rangesByLowerCut;
   }
 
-  @MonotonicNonNullDecl private transient Set<Range<C>> asRanges;
-  @MonotonicNonNullDecl private transient Set<Range<C>> asDescendingSetOfRanges;
+  @CheckForNull private transient Set<Range<C>> asRanges;
+  @CheckForNull private transient Set<Range<C>> asDescendingSetOfRanges;
 
   @Override
   public Set<Range<C>> asRanges() {
@@ -113,13 +113,13 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     }
 
     @Override
-    public boolean equals(@NullableDecl Object o) {
+    public boolean equals(@CheckForNull Object o) {
       return Sets.equalsImpl(this, o);
     }
   }
 
   @Override
-  @NullableDecl
+  @CheckForNull
   public Range<C> rangeContaining(C value) {
     checkNotNull(value);
     Entry<Cut<C>, Range<C>> floorEntry = rangesByLowerBound.floorEntry(Cut.belowValue(value));
@@ -153,7 +153,7 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     return floorEntry != null && floorEntry.getValue().encloses(range);
   }
 
-  @NullableDecl
+  @CheckForNull
   private Range<C> rangeEnclosing(Range<C> range) {
     checkNotNull(range);
     Entry<Cut<C>, Range<C>> floorEntry = rangesByLowerBound.floorEntry(range.lowerBound);
@@ -166,7 +166,11 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
   public Range<C> span() {
     Entry<Cut<C>, Range<C>> firstEntry = rangesByLowerBound.firstEntry();
     Entry<Cut<C>, Range<C>> lastEntry = rangesByLowerBound.lastEntry();
-    if (firstEntry == null) {
+    if (firstEntry == null || lastEntry == null) {
+      /*
+       * Either both are null or neither is: Either the set is empty, or it's not. But we check both
+       * to make the nullness checker happy.
+       */
       throw new NoSuchElementException();
     }
     return Range.create(firstEntry.getValue().lowerBound, lastEntry.getValue().upperBound);
@@ -270,7 +274,7 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     }
   }
 
-  @MonotonicNonNullDecl private transient RangeSet<C> complement;
+  @CheckForNull private transient RangeSet<C> complement;
 
   @Override
   public RangeSet<C> complement() {
@@ -333,12 +337,13 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     }
 
     @Override
-    public boolean containsKey(@NullableDecl Object key) {
+    public boolean containsKey(@CheckForNull Object key) {
       return get(key) != null;
     }
 
     @Override
-    public Range<C> get(@NullableDecl Object key) {
+    @CheckForNull
+    public Range<C> get(@CheckForNull Object key) {
       if (key instanceof Cut) {
         try {
           @SuppressWarnings("unchecked") // we catch CCEs
@@ -625,8 +630,8 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     }
 
     @Override
-    @NullableDecl
-    public Range<C> get(Object key) {
+    @CheckForNull
+    public Range<C> get(@CheckForNull Object key) {
       if (key instanceof Cut) {
         try {
           @SuppressWarnings("unchecked")
@@ -644,7 +649,7 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     }
 
     @Override
-    public boolean containsKey(Object key) {
+    public boolean containsKey(@CheckForNull Object key) {
       return get(key) != null;
     }
   }
@@ -738,13 +743,13 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     }
 
     @Override
-    public boolean containsKey(@NullableDecl Object key) {
+    public boolean containsKey(@CheckForNull Object key) {
       return get(key) != null;
     }
 
     @Override
-    @NullableDecl
-    public Range<C> get(@NullableDecl Object key) {
+    @CheckForNull
+    public Range<C> get(@CheckForNull Object key) {
       if (key instanceof Cut) {
         try {
           @SuppressWarnings("unchecked") // we catch CCE's
@@ -881,7 +886,7 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
     }
 
     @Override
-    @NullableDecl
+    @CheckForNull
     public Range<C> rangeContaining(C value) {
       if (!restriction.contains(value)) {
         return null;
@@ -897,7 +902,7 @@ public class TreeRangeSet<C extends Comparable<?>> extends AbstractRangeSet<C>
           "Cannot add range %s to subRangeSet(%s)",
           rangeToAdd,
           restriction);
-      super.add(rangeToAdd);
+      TreeRangeSet.this.add(rangeToAdd);
     }
 
     @Override

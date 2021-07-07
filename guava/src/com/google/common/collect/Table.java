@@ -20,9 +20,11 @@ import com.google.common.annotations.GwtCompatible;
 import com.google.common.base.Objects;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.errorprone.annotations.CompatibleWith;
+import com.google.errorprone.annotations.DoNotMock;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.CheckForNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -52,6 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <V> the type of the mapped values
  * @since 7.0
  */
+@DoNotMock("Use ImmutableTable, HashBasedTable, or another implementation")
 @GwtCompatible
 public interface Table<R, C, V> {
   // TODO(jlevy): Consider adding methods similar to ConcurrentMap methods.
@@ -96,6 +99,7 @@ public interface Table<R, C, V> {
    * @param rowKey key of row to search for
    * @param columnKey key of column to search for
    */
+  @CheckForNull
   V get(
       @Nullable @CompatibleWith("R") Object rowKey,
       @Nullable @CompatibleWith("C") Object columnKey);
@@ -136,7 +140,7 @@ public interface Table<R, C, V> {
    *     for the keys
    */
   @CanIgnoreReturnValue
-  @Nullable
+  @CheckForNull
   V put(R rowKey, C columnKey, V value);
 
   /**
@@ -155,7 +159,7 @@ public interface Table<R, C, V> {
    * @return the value previously associated with the keys, or {@code null} if no such value existed
    */
   @CanIgnoreReturnValue
-  @Nullable
+  @CheckForNull
   V remove(
       @Nullable @CompatibleWith("R") Object rowKey,
       @Nullable @CompatibleWith("C") Object columnKey);

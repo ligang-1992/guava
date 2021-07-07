@@ -26,6 +26,7 @@ import com.google.common.annotations.GwtIncompatible;
 import com.google.common.base.Objects;
 import com.google.common.collect.Maps.IteratorBasedAbstractMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.google.errorprone.annotations.DoNotCall;
 import com.google.j2objc.annotations.WeakOuter;
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -34,11 +35,21 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import org.checkerframework.checker.nullness.compatqual.MonotonicNonNullDecl;
+import javax.annotation.CheckForNull;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
 /**
  * Fixed-size {@link Table} implementation backed by a two-dimensional array.
+ *
+ * <p><b>Warning:</b> {@code ArrayTable} is rarely the {@link Table} implementation you want. First,
+ * it requires that the complete universe of rows and columns be specified at construction time.
+ * Second, it is always backed by an array large enough to hold a value for every possible
+ * combination of row and column keys. (This is rarely optimal unless the table is extremely dense.)
+ * Finally, every possible combination of row and column keys is always considered to have a value
+ * associated with it: It is not possible to "remove" a value, only to replace it with {@code null},
+ * which will still appear when iterating over the table's contents in a foreach loop or a call to a
+ * null-hostile method like {@link ImmutableTable#copyOf}. For alternatives, please see <a
+ * href="https://github.com/google/guava/wiki/NewCollectionTypesExplained#table">the wiki</a>.
  *
  * <p>The allowed row and column keys must be supplied when the table is created. The table always
  * contains a mapping for every row key / column pair. The value corresponding to a given row and
@@ -141,7 +152,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
      * TODO(jlevy): Support only one of rowKey / columnKey being empty? If we
      * do, when columnKeys is empty but rowKeys isn't, rowKeyList() can contain
      * elements but rowKeySet() will be empty and containsRow() won't
-     * acknolwedge them.
+     * acknowledge them.
      */
     rowKeyToIndex = Maps.indexMap(rowList);
     columnKeyToIndex = Maps.indexMap(columnList);
@@ -301,6 +312,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
    *     or equal to the number of allowed row keys, or {@code columnIndex} is greater than or equal
    *     to the number of allowed column keys
    */
+  @CheckForNull
   public V at(int rowIndex, int columnIndex) {
     // In GWT array access never throws IndexOutOfBoundsException.
     checkElementIndex(rowIndex, rowList.size());
@@ -322,6 +334,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
    *     to the number of allowed column keys
    */
   @CanIgnoreReturnValue
+  @CheckForNull
   public V set(int rowIndex, int columnIndex, @NullableDecl V value) {
     // In GWT array access never throws IndexOutOfBoundsException.
     checkElementIndex(rowIndex, rowList.size());
@@ -356,6 +369,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
    * @throws UnsupportedOperationException always
    * @deprecated Use {@link #eraseAll}
    */
+  @DoNotCall("Always throws UnsupportedOperationException")
   @Override
   @Deprecated
   public void clear() {
@@ -409,6 +423,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
   }
 
   @Override
+  @CheckForNull
   public V get(@NullableDecl Object rowKey, @NullableDecl Object columnKey) {
     Integer rowIndex = rowKeyToIndex.get(rowKey);
     Integer columnIndex = columnKeyToIndex.get(columnKey);
@@ -431,6 +446,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
    */
   @CanIgnoreReturnValue
   @Override
+  @CheckForNull
   public V put(R rowKey, C columnKey, @NullableDecl V value) {
     checkNotNull(rowKey);
     checkNotNull(columnKey);
@@ -467,6 +483,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
    * @throws UnsupportedOperationException always
    * @deprecated Use {@link #erase}
    */
+  @DoNotCall("Always throws UnsupportedOperationException")
   @CanIgnoreReturnValue
   @Override
   @Deprecated
@@ -488,6 +505,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
    *     for the keys
    */
   @CanIgnoreReturnValue
+  @CheckForNull
   public V erase(@NullableDecl Object rowKey, @NullableDecl Object columnKey) {
     Integer rowIndex = rowKeyToIndex.get(rowKey);
     Integer columnIndex = columnKeyToIndex.get(columnKey);
@@ -611,7 +629,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
     return columnKeyToIndex.keySet();
   }
 
-  @MonotonicNonNullDecl private transient ColumnMap columnMap;
+  @NullableDecl private transient ColumnMap columnMap;
 
   @Override
   public Map<C, Map<R, V>> columnMap() {
@@ -699,7 +717,7 @@ public final class ArrayTable<R, C, V> extends AbstractTable<R, C, V> implements
     return rowKeyToIndex.keySet();
   }
 
-  @MonotonicNonNullDecl private transient RowMap rowMap;
+  @NullableDecl private transient RowMap rowMap;
 
   @Override
   public Map<R, Map<C, V>> rowMap() {

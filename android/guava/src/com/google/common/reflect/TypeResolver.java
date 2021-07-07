@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.checkerframework.checker.nullness.compatqual.NullableDecl;
+import javax.annotation.CheckForNull;
 
 /**
  * An object of this class encapsulates type mappings from type variables. Mappings are established
@@ -52,6 +52,7 @@ import org.checkerframework.checker.nullness.compatqual.NullableDecl;
  * @since 15.0
  */
 @Beta
+@ElementTypesAreNonnullByDefault
 public final class TypeResolver {
 
   private final TypeTable typeTable;
@@ -66,10 +67,10 @@ public final class TypeResolver {
 
   /**
    * Returns a resolver that resolves types "covariantly".
-   * <p>For example, when resolving {@code List<T>} in the context of {@code ArrayList<?>},
-   * {@code <T>} is covariantly resolved to {@code <?>} such that return type of {@code List::get}
-   * is {@code <?>}.
    *
+   * <p>For example, when resolving {@code List<T>} in the context of {@code ArrayList<?>}, {@code
+   * <T>} is covariantly resolved to {@code <?>} such that return type of {@code List::get} is
+   * {@code <?>}.
    */
   static TypeResolver covariantly(Type contextType) {
     return new TypeResolver().where(TypeMappingIntrospector.getTypeMappings(contextType));
@@ -78,14 +79,13 @@ public final class TypeResolver {
   /**
    * Returns a resolver that resolves types "invariantly".
    *
-   * <p>For example, when resolving {@code List<T>} in the context of {@code ArrayList<?>},
-   * {@code <T>} cannot be invariantly resolved to {@code <?>} because otherwise the parameter type
-   * of {@code List::set} will be {@code <?>} and it'll falsely say any object can be passed into
+   * <p>For example, when resolving {@code List<T>} in the context of {@code ArrayList<?>}, {@code
+   * <T>} cannot be invariantly resolved to {@code <?>} because otherwise the parameter type of
+   * {@code List::set} will be {@code <?>} and it'll falsely say any object can be passed into
    * {@code ArrayList<?>::set}.
    *
-   * <p>Instead, {@code <?>} will be resolved to a capture in the form of a type variable
-   * {@code <capture-of-? extends Object>}, effectively preventing {@code set} from accepting any
-   * type.
+   * <p>Instead, {@code <?>} will be resolved to a capture in the form of a type variable {@code
+   * <capture-of-? extends Object>}, effectively preventing {@code set} from accepting any type.
    */
   static TypeResolver invariantly(Type contextType) {
     Type invariantContext = WildcardCapturer.INSTANCE.capture(contextType);
@@ -528,7 +528,8 @@ public final class TypeResolver {
       return new WildcardCapturer(id);
     }
 
-    private Type captureNullable(@NullableDecl Type type) {
+    @CheckForNull
+    private Type captureNullable(@CheckForNull Type type) {
       if (type == null) {
         return null;
       }
@@ -562,7 +563,7 @@ public final class TypeResolver {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@CheckForNull Object obj) {
       if (obj instanceof TypeVariableKey) {
         TypeVariableKey that = (TypeVariableKey) obj;
         return equalsTypeVariable(that.var);
@@ -577,6 +578,7 @@ public final class TypeResolver {
     }
 
     /** Wraps {@code t} in a {@code TypeVariableKey} if it's a type variable. */
+    @CheckForNull
     static TypeVariableKey forLookup(Type t) {
       if (t instanceof TypeVariable) {
         return new TypeVariableKey((TypeVariable<?>) t);

@@ -91,6 +91,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <h3>Other notes</h3>
  *
  * <ul>
+ *   <li>All ranges are shallow-immutable.
  *   <li>Instances of this type are obtained using the static factory methods in this class.
  *   <li>Ranges are <i>convex</i>: whenever two values are contained, all values in between them
  *       must also be contained. More formally, for any {@code c1 <= c2 <= c3} of type {@code C},
@@ -161,6 +162,7 @@ public final class Range<C extends Comparable> extends RangeGwtSerializationDepe
    *
    * @throws IllegalArgumentException if {@code lower} is greater than <i>or equal to</i> {@code
    *     upper}
+   * @throws ClassCastException if {@code lower} and {@code upper} are not mutually comparable
    * @since 14.0
    */
   public static <C extends Comparable<?>> Range<C> open(C lower, C upper) {
@@ -172,6 +174,7 @@ public final class Range<C extends Comparable> extends RangeGwtSerializationDepe
    * or equal to {@code upper}.
    *
    * @throws IllegalArgumentException if {@code lower} is greater than {@code upper}
+   * @throws ClassCastException if {@code lower} and {@code upper} are not mutually comparable
    * @since 14.0
    */
   public static <C extends Comparable<?>> Range<C> closed(C lower, C upper) {
@@ -183,6 +186,7 @@ public final class Range<C extends Comparable> extends RangeGwtSerializationDepe
    * less than {@code upper}.
    *
    * @throws IllegalArgumentException if {@code lower} is greater than {@code upper}
+   * @throws ClassCastException if {@code lower} and {@code upper} are not mutually comparable
    * @since 14.0
    */
   public static <C extends Comparable<?>> Range<C> closedOpen(C lower, C upper) {
@@ -194,6 +198,7 @@ public final class Range<C extends Comparable> extends RangeGwtSerializationDepe
    * equal to {@code upper}.
    *
    * @throws IllegalArgumentException if {@code lower} is greater than {@code upper}
+   * @throws ClassCastException if {@code lower} and {@code upper} are not mutually comparable
    * @since 14.0
    */
   public static <C extends Comparable<?>> Range<C> openClosed(C lower, C upper) {
@@ -205,6 +210,7 @@ public final class Range<C extends Comparable> extends RangeGwtSerializationDepe
    * endpoint may be either inclusive (closed) or exclusive (open).
    *
    * @throws IllegalArgumentException if {@code lower} is greater than {@code upper}
+   * @throws ClassCastException if {@code lower} and {@code upper} are not mutually comparable
    * @since 14.0
    */
   public static <C extends Comparable<?>> Range<C> range(
@@ -315,7 +321,7 @@ public final class Range<C extends Comparable> extends RangeGwtSerializationDepe
    * Returns the minimal range that {@linkplain Range#contains(Comparable) contains} all of the
    * given values. The returned range is {@linkplain BoundType#CLOSED closed} on both ends.
    *
-   * @throws ClassCastException if the parameters are not <i>mutually comparable</i>
+   * @throws ClassCastException if the values are not mutually comparable
    * @throws NoSuchElementException if {@code values} is empty
    * @throws NullPointerException if any of {@code values} is null
    * @since 14.0
@@ -571,6 +577,22 @@ public final class Range<C extends Comparable> extends RangeGwtSerializationDepe
    * @since 27.0
    */
   public Range<C> gap(Range<C> otherRange) {
+    /*
+     * For an explanation of the basic principle behind this check, see
+     * https://stackoverflow.com/a/35754308/28465
+     *
+     * In that explanation's notation, our `overlap` check would be `x1 < y2 && y1 < x2`. We've
+     * flipped one part of the check so that we're using "less than" in both cases (rather than a
+     * mix of "less than" and "greater than"). We've also switched to "strictly less than" rather
+     * than "less than or equal to" because of *handwave* the difference between "endpoints of
+     * inclusive ranges" and "Cuts."
+     */
+    if (lowerBound.compareTo(otherRange.upperBound) < 0
+        && otherRange.lowerBound.compareTo(upperBound) < 0) {
+      throw new IllegalArgumentException(
+          "Ranges have a nonempty intersection: " + this + ", " + otherRange);
+    }
+
     boolean isThisFirst = this.lowerBound.compareTo(otherRange.lowerBound) < 0;
     Range<C> firstRange = isThisFirst ? this : otherRange;
     Range<C> secondRange = isThisFirst ? otherRange : this;

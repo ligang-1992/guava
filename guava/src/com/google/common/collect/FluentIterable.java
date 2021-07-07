@@ -24,6 +24,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import com.google.errorprone.annotations.InlineMe;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -52,7 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Several lesser-used features are currently available only as static methods on the {@link
  * Iterables} class.
  *
- * <p><a name="streams"></a>
+ * <p><a id="streams"></a>
  *
  * <h3>Comparison to streams</h3>
  *
@@ -170,6 +171,9 @@ public abstract class FluentIterable<E> implements Iterable<E> {
    *     FluentIterable}
    */
   @Deprecated
+  @InlineMe(
+      replacement = "checkNotNull(iterable)",
+      staticImports = {"com.google.common.base.Preconditions.checkNotNull"})
   public static <E> FluentIterable<E> from(FluentIterable<E> iterable) {
     return checkNotNull(iterable);
   }
@@ -786,7 +790,7 @@ public abstract class FluentIterable<E> implements Iterable<E> {
     checkNotNull(collection);
     Iterable<E> iterable = getDelegate();
     if (iterable instanceof Collection) {
-      collection.addAll(Collections2.cast(iterable));
+      collection.addAll((Collection<E>) iterable);
     } else {
       for (E item : iterable) {
         collection.add(item);
