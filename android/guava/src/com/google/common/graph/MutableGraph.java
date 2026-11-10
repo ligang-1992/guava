@@ -16,7 +16,6 @@
 
 package com.google.common.graph;
 
-import com.google.common.annotations.Beta;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 
 /**
@@ -28,7 +27,6 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
  * @param <N> Node parameter type
  * @since 20.0
  */
-@Beta
 public interface MutableGraph<N> extends Graph<N> {
 
   /**
@@ -73,6 +71,7 @@ public interface MutableGraph<N> extends Graph<N> {
    * @throws IllegalArgumentException if the introduction of the edge would violate {@link
    *     #allowsSelfLoops()}
    * @throws IllegalArgumentException if the endpoints are unordered and the graph is directed
+   * @since 27.1
    */
   @CanIgnoreReturnValue
   boolean putEdge(EndpointPair<N> endpoints);
@@ -100,6 +99,7 @@ public interface MutableGraph<N> extends Graph<N> {
    *
    * @throws IllegalArgumentException if the endpoints are unordered and the graph is directed
    * @return {@code true} if the graph was modified as a result of this call
+   * @since 27.1
    */
   @CanIgnoreReturnValue
   boolean removeEdge(EndpointPair<N> endpoints);

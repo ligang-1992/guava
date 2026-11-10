@@ -16,7 +16,6 @@
 
 package com.google.common.graph;
 
-import com.google.common.annotations.Beta;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 
 /**
@@ -29,7 +28,6 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
  * @param <E> Edge parameter type
  * @since 20.0
  */
-@Beta
 public interface MutableNetwork<N, E> extends Network<N, E> {
 
   /**
@@ -90,6 +88,7 @@ public interface MutableNetwork<N, E> extends Network<N, E> {
    * @throws IllegalArgumentException if the introduction of the edge would violate {@link
    *     #allowsParallelEdges()} or {@link #allowsSelfLoops()}
    * @throws IllegalArgumentException if the endpoints are unordered and the graph is directed
+   * @since 27.1
    */
   @CanIgnoreReturnValue
   boolean addEdge(EndpointPair<N> endpoints, E edge);

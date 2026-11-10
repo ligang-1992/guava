@@ -16,7 +16,7 @@ package com.google.common.cache;
 
 import com.google.common.annotations.GwtCompatible;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.Callable;
@@ -43,7 +43,9 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
   /** Constructor for use by subclasses. */
   protected AbstractCache() {}
 
-  /** @since 11.0 */
+  /**
+   * @since 11.0
+   */
   @Override
   public V get(K key, Callable<? extends V> valueLoader) throws ExecutionException {
     throw new UnsupportedOperationException();
@@ -58,9 +60,13 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
    *
    * @since 11.0
    */
+  /*
+   * <? extends Object> is mostly the same as <?> to plain Java. But to nullness checkers, they
+   * differ: <? extends Object> means "non-null types," while <?> means "all types."
+   */
   @Override
-  public ImmutableMap<K, V> getAllPresent(Iterable<?> keys) {
-    Map<K, V> result = Maps.newLinkedHashMap();
+  public ImmutableMap<K, V> getAllPresent(Iterable<? extends Object> keys) {
+    Map<K, V> result = new LinkedHashMap<>();
     for (Object key : keys) {
       if (!result.containsKey(key)) {
         @SuppressWarnings("unchecked")
@@ -74,13 +80,17 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
     return ImmutableMap.copyOf(result);
   }
 
-  /** @since 11.0 */
+  /**
+   * @since 11.0
+   */
   @Override
   public void put(K key, V value) {
     throw new UnsupportedOperationException();
   }
 
-  /** @since 12.0 */
+  /**
+   * @since 12.0
+   */
   @Override
   public void putAll(Map<? extends K, ? extends V> m) {
     for (Entry<? extends K, ? extends V> entry : m.entrySet()) {
@@ -101,9 +111,12 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
     throw new UnsupportedOperationException();
   }
 
-  /** @since 11.0 */
+  /**
+   * @since 11.0
+   */
   @Override
-  public void invalidateAll(Iterable<?> keys) {
+  // For discussion of <? extends Object>, see getAllPresent.
+  public void invalidateAll(Iterable<? extends Object> keys) {
     for (Object key : keys) {
       invalidate(key);
     }
@@ -160,6 +173,7 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
      * @param loadTime the number of nanoseconds the cache spent computing or retrieving the new
      *     value
      */
+    @SuppressWarnings("GoodTime") // should accept a java.time.Duration
     void recordLoadSuccess(long loadTime);
 
     /**
@@ -170,6 +184,7 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
      * @param loadTime the number of nanoseconds the cache spent computing or retrieving the new
      *     value prior to an exception being thrown
      */
+    @SuppressWarnings("GoodTime") // should accept a java.time.Duration
     void recordLoadException(long loadTime);
 
     /**
@@ -189,6 +204,13 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
   /**
    * A thread-safe {@link StatsCounter} implementation for use by {@link Cache} implementors.
    *
+   * <p>Each counter is updated atomically, but the counters are not updated together: For
+   * performance, this class does not lock, so a {@link #snapshot} taken concurrently with updates
+   * may reflect only part of an update. For example, it may include the increment of the
+   * load-success count from a call to {@link #recordLoadSuccess} but not the corresponding load
+   * time. As a result, values derived from a snapshot, like {@link CacheStats#averageLoadPenalty},
+   * may be briefly inconsistent.
+   *
    * @since 10.0
    */
   public static final class SimpleStatsCounter implements StatsCounter {
@@ -202,24 +224,30 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
     /** Constructs an instance with all counts initialized to zero. */
     public SimpleStatsCounter() {}
 
-    /** @since 11.0 */
+    /**
+     * @since 11.0
+     */
     @Override
     public void recordHits(int count) {
       hitCount.add(count);
     }
 
-    /** @since 11.0 */
+    /**
+     * @since 11.0
+     */
     @Override
     public void recordMisses(int count) {
       missCount.add(count);
     }
 
+    @SuppressWarnings("GoodTime") // b/122668874
     @Override
     public void recordLoadSuccess(long loadTime) {
       loadSuccessCount.increment();
       totalLoadTime.add(loadTime);
     }
 
+    @SuppressWarnings("GoodTime") // b/122668874
     @Override
     public void recordLoadException(long loadTime) {
       loadExceptionCount.increment();
@@ -234,12 +262,17 @@ public abstract class AbstractCache<K, V> implements Cache<K, V> {
     @Override
     public CacheStats snapshot() {
       return new CacheStats(
-          hitCount.sum(),
-          missCount.sum(),
-          loadSuccessCount.sum(),
-          loadExceptionCount.sum(),
-          totalLoadTime.sum(),
-          evictionCount.sum());
+          negativeToMaxValue(hitCount.sum()),
+          negativeToMaxValue(missCount.sum()),
+          negativeToMaxValue(loadSuccessCount.sum()),
+          negativeToMaxValue(loadExceptionCount.sum()),
+          negativeToMaxValue(totalLoadTime.sum()),
+          negativeToMaxValue(evictionCount.sum()));
+    }
+
+    /** Returns {@code value}, if non-negative. Otherwise, returns {@link Long#MAX_VALUE}. */
+    private static long negativeToMaxValue(long value) {
+      return (value >= 0) ? value : Long.MAX_VALUE;
     }
 
     /** Increments all counters by the values in {@code other}. */

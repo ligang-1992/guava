@@ -17,9 +17,10 @@ package com.google.common.io;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkPositionIndexes;
 
-import com.google.common.annotations.Beta;
 import com.google.common.annotations.GwtIncompatible;
+import com.google.common.annotations.J2ktIncompatible;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
@@ -28,22 +29,17 @@ import java.io.Writer;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides utility methods for working with character streams.
- *
- * <p>All method parameters must be non-null unless documented otherwise.
- *
- * <p>Some of the methods in this class take arguments with a generic type of {@code Readable &
- * Closeable}. A {@link java.io.Reader} implements both of those interfaces. Similarly for {@code
- * Appendable & Closeable} and {@link java.io.Writer}.
  *
  * @author Chris Nokleberg
  * @author Bin Zhu
  * @author Colin Decker
  * @since 1.0
  */
-@Beta
+@J2ktIncompatible
 @GwtIncompatible
 public final class CharStreams {
 
@@ -61,6 +57,9 @@ public final class CharStreams {
    * Copies all characters between the {@link Readable} and {@link Appendable} objects. Does not
    * close or flush either object.
    *
+   * <p><b>Java 10+ users:</b> If the input is a {@link Reader} and the output is a {@link Writer},
+   * prefer {@link Reader#transferTo(Writer)}.
+   *
    * @param from the object to read from
    * @param to the object to write to
    * @return the number of characters copied
@@ -77,19 +76,19 @@ public final class CharStreams {
       } else {
         return copyReaderToWriter((Reader) from, asWriter(to));
       }
-    } else {
-      checkNotNull(from);
-      checkNotNull(to);
-      long total = 0;
-      CharBuffer buf = createBuffer();
-      while (from.read(buf) != -1) {
-        buf.flip();
-        to.append(buf);
-        total += buf.remaining();
-        buf.clear();
-      }
-      return total;
     }
+
+    checkNotNull(from);
+    checkNotNull(to);
+    long total = 0;
+    CharBuffer buf = createBuffer();
+    while (from.read(buf) != -1) {
+      Java8Compatibility.flip(buf);
+      to.append(buf);
+      total += buf.remaining();
+      Java8Compatibility.clear(buf);
+    }
+    return total;
   }
 
   // TODO(lukes): consider allowing callers to pass in a buffer to use, some callers would be able
@@ -156,6 +155,9 @@ public final class CharStreams {
    * Reads all characters from a {@link Readable} object into a {@link String}. Does not close the
    * {@code Readable}.
    *
+   * <p><b>Java 25+ users:</b> If the input is a {@link Reader}, prefer {@link
+   * Reader#readAllAsString()}.
+   *
    * @param r the object to read from
    * @return a string containing all the characters
    * @throws IOException if an I/O error occurs
@@ -189,6 +191,15 @@ public final class CharStreams {
    * <p>Does not close the {@code Readable}. If reading files or resources you should use the {@link
    * Files#readLines} and {@link Resources#readLines} methods.
    *
+   * <p>This method prioritizes convenience over performance: It reads the entire input into memory
+   * immediately. To instead read and process lines individually, use an alternative like {@link
+   * BufferedReader#lines()}.
+   *
+   * <p><b>Java 25+ users:</b> If the input is a {@link Reader}, you may prefer {@link
+   * Reader#readAllLines()}. The two may have different performance characteristics for different
+   * {@link Reader} classes and Java versions, but both methods read the entire input into memory
+   * immediately, so we discourage use of both when memory usage is a concern.
+   *
    * @param r the object to read from
    * @return a mutable {@link List} containing all the lines
    * @throws IOException if an I/O error occurs
@@ -209,11 +220,17 @@ public final class CharStreams {
    * {@code readable}. Note that this method may not fully consume the contents of {@code readable}
    * if the processor stops processing early.
    *
+   * <p><b>Users who can use {@code Stream}:</b> If your input is a {@link Reader}, consider
+   * wrapping it with a {@link BufferedReader} and operating on the {@link java.util.stream.Stream}
+   * of lines returned by {@link BufferedReader#lines()}.
+   *
    * @throws IOException if an I/O error occurs
    * @since 14.0
    */
   @CanIgnoreReturnValue // some processors won't return a useful result
-  public static <T> T readLines(Readable readable, LineProcessor<T> processor) throws IOException {
+  @ParametricNullness
+  public static <T extends @Nullable Object> T readLines(
+      Readable readable, LineProcessor<T> processor) throws IOException {
     checkNotNull(readable);
     checkNotNull(processor);
 
@@ -240,7 +257,7 @@ public final class CharStreams {
     CharBuffer buf = createBuffer();
     while ((read = readable.read(buf)) != -1) {
       total += read;
-      buf.clear();
+      Java8Compatibility.clear(buf);
     }
     return total;
   }
@@ -267,6 +284,11 @@ public final class CharStreams {
 
   /**
    * Returns a {@link Writer} that simply discards written chars.
+   *
+   * <p><b>Java 11+ users:</b> use {@link Writer#nullWriter()} instead. Note that the {@link
+   * CharStreams} method returns a singleton writer whose {@code close} method has no effect, while
+   * the {@link Writer#nullWriter()} method returns a new instance whose methods throw after the
+   * instance is {@link Writer#close() closed}.
    *
    * @since 15.0
    */
@@ -302,14 +324,13 @@ public final class CharStreams {
     }
 
     @Override
-    public Writer append(CharSequence csq) {
-      checkNotNull(csq);
+    public Writer append(@Nullable CharSequence csq) {
       return this;
     }
 
     @Override
-    public Writer append(CharSequence csq, int start, int end) {
-      checkPositionIndexes(start, end, csq.length());
+    public Writer append(@Nullable CharSequence csq, int start, int end) {
+      checkPositionIndexes(start, end, csq == null ? "null".length() : csq.length());
       return this;
     }
 
